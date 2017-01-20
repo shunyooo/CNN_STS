@@ -152,17 +152,16 @@ if __name__ == "__main__":
       W_o = tf.Variable(tf.truncated_normal([filter_num_total, class_num], stddev=0.1), name="W")
       b_o = tf.Variable(tf.constant(0.1, shape=[class_num]), name="b")
 
-
       linear = tf.matmul(h_drop, W_o) + b_o
       scores = linear
 
-      #予測は5クラス
+      #予測は5クラス。一番値の大きいクラスを、予測したクラスとする。
       predictions = tf.argmax(scores, 1, name="predictions")
 
-    # 損失関数
+    # 損失関数 ここではクロスエントロピー。
     with tf.name_scope("loss"):
       losses = tf.nn.softmax_cross_entropy_with_logits(scores, y_)
-      loss = tf.reduce_mean(losses)
+      loss = tf.reduce_mean(losses)#平均
 
       # 正答率
       correct_predictions = tf.equal(predictions, tf.argmax(y_, 1))
