@@ -15,14 +15,20 @@ import re
 import random
 from scipy.stats import pearsonr
 
+import seaborn as sns
+import pandas as pd
+
 # パースを行うか否か
 isParse = True
 
 # 1素性に含まれる単語数の基準長（可変）
-DOCUMENT_LENGTH = 30
+DOCUMENT_LENGTH = 50
 
 # 単語ベクトルのサイズ（word2vecで設定しているので、固定で。）
 EMBEDDING_SIZE = 200
+
+# ミニバッチのサイズ
+MINIBATCH_SIZE = 100
 
 # 素性の作り方(paddingの方法)
 # padding-cross 文書を交差して構成
@@ -36,6 +42,7 @@ EPOCH = 1000
 
 
 if __name__ == "__main__":
+
   methodName = METHOD_NAME
 
   # ログ出力用
@@ -65,6 +72,8 @@ if __name__ == "__main__":
                 "../STS_data/parsed/origined/input/STS.input.tweet-news_750.txt"
                 ]
 
+    docPathList = [config.inputDirPath[:-1]+"STS.input."+name+".txt" for name in nameList]
+    print(docPathList)
 
     TARGETNUM = i
     targetName = nameList[TARGETNUM]
@@ -186,12 +195,12 @@ if __name__ == "__main__":
 
         # 数値の範囲を0-5に絞るべきでは->sigmoid*5で対処。
         linear = tf.matmul(h_drop, W_o) + b_o
-        scores = tf.nn.sigmoid(linear,name = "sigmoid")*5
+        scores = tf.nn.sigmoid(linear,name = "sigmoid")
 
       # 損失関数
       with tf.name_scope("loss"):
         #l2_lossは誤差二乗和
-        loss = tf.nn.l2_loss(scores - y_)
+        loss = tf.nn.l2_loss(scores - y_/5)
 
       with tf.name_scope('optimize'):
         # Adamオプティマイザーによるパラメータの最適化
@@ -216,7 +225,7 @@ if __name__ == "__main__":
 
             # ミニバッチ（100件ランダムで取得）
             # training_xyには、modelsで定義した各文書行列及び正解ラベル（カテゴリ）が入っている
-            samples = random.sample(result, 100)
+            samples = random.sample(result, MINIBATCH_SIZE)
             batch_xs = np.array([[s[0] for s in samples],[s[1] for s in samples]])
             batch_ys = np.array([s[2] for s in samples])
             batch_ys = batch_ys.reshape(len(batch_ys),1)#reshapeしろ問題
@@ -251,7 +260,32 @@ if __name__ == "__main__":
           batch_ys = np.array([s[2] for s in targets])
           batch_ys = batch_ys.reshape(len(batch_ys),1)
           print(len(batch_xs))
+
+          # 出力比較ログ
           s,a,l = sess.run([scores,loss,linear], feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0})
+          with open("log/log_"+methodName+"_"+targetName+"_"+str(EPOCH)+"epoch.txt", mode='w') as logout:
+              logout.write("学習データリスト\n")
+              igNameList = [name for name in nameList if name != targetName]
+              for name in igNameList:
+                logout.write(name+"\n")
+              logout.write("\nテストデータ\n")
+              logout.write(targetName+"\n\n")
+              logout.write("世代数:"+str(EPOCH)+"\n")
+              logout.write("学習データサイズ:"+str(len(targets))+"\n")
+              logout.write("テストデータサイズ:"+str(len(result))+"\n")
+              logout.write("ミニバッチサイズ:"+str(MINIBATCH_SIZE)+"\n")
+              logout.write("素性の作り:"+methodName+"\n")
+
+              logout.write("----------------------------------------------------\n\n")
+              doc_text = open(docPathList[TARGETNUM],mode='r')
+              for ans,out,doc in zip(batch_ys,s,doc_text):
+                  logout.write(doc+"正解"+str(ans[0])+", 出力"+str(out[0]*5)+"\n\n")
+
+          # 相関を描画
+          df = pd.DataFrame({"ans":[x[0] for x in batch_ys],"out":[y[0] for y in s]})
+          sns.jointplot(x="out", y="ans", data=df);
+          sns.plt.show()
+
           print("損失関数",a)
           r, p = pearsonr(s, batch_ys)
           print("相関:",r," 有意確率",p)
