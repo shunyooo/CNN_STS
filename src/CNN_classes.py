@@ -26,6 +26,9 @@ FILTER_NUM = 128
 # 1文書に含まれる単語数（全文書合わせてある）
 DOCUMENT_LENGTH = 1000
 
+#世代数
+EPOCH = 1000
+
 if __name__ == "__main__":
   methodName = "classes"
 
@@ -78,7 +81,7 @@ if __name__ == "__main__":
   with tf.Graph().as_default():
 
     # 変数
-    with tf.name_scope('input'): 
+    with tf.name_scope('input'):
       # インプット変数（各文書が　単語数 x 単語ベクトル　のマトリクス）
       x = tf.placeholder(tf.float32, [None, DOCUMENT_LENGTH, EMBEDDING_SIZE], name="x")
       # アウトプット変数5クラス
@@ -119,7 +122,7 @@ if __name__ == "__main__":
           # 活性化関数にはReLU関数を利用
           h = tf.nn.relu(tf.nn.bias_add(conv, b_f), name="relu")
 
-          # プーリング層 Max Pooling 
+          # プーリング層 Max Pooling
           pooled = tf.nn.max_pool(
               h,
               ksize=[1, DOCUMENT_LENGTH - filter_size + 1, 1, 1],
@@ -142,7 +145,7 @@ if __name__ == "__main__":
 
     # ドロップアウト（トレーニング時0.5、テスト時1.0）
     h_drop = tf.nn.dropout(h_pool_flat, dropout_keep_prob)
-    
+
     with tf.name_scope('output'):
       # アウトプット層
       class_num = len(entry_list)
@@ -171,7 +174,7 @@ if __name__ == "__main__":
       train_step = tf.train.AdamOptimizer(0.0001).minimize(loss, global_step=global_step)
 
 
-    
+
 
     with tf.Session() as sess:
       sess.run(tf.global_variables_initializer())
@@ -185,11 +188,11 @@ if __name__ == "__main__":
       summary_writer = tf.summary.FileWriter("log/sigmoid-classes/" + subdir, sess.graph)
 
       # ミニバッチ学習
-      for i in range(101):
+      for i in range(EPOCH+1):
 
           # ミニバッチ（100件ランダムで取得）
           # training_xyには、modelsで定義した各文書行列及び正解ラベル（カテゴリ）が入っている
-          #{  
+          #{
           # "tag":"タグ名",
           # "no":tag_number,
           # "doc":"文書",
@@ -198,7 +201,7 @@ if __name__ == "__main__":
           #}
           samples = random.sample(category_data_input, 100)
           batch_xs = np.array([sample["word2vec_list"] for sample in samples])
-          
+
           batch_ys = []
           for sample in samples:
             index = entry_list_category.index(sample["tag"])
@@ -223,8 +226,8 @@ if __name__ == "__main__":
 
       # 精度確認
       print("最終精度確認")
-      samples = category_data_target          
-      batch_xs = np.array([sample["word2vec_list"] for sample in samples])    
+      samples = category_data_target
+      batch_xs = np.array([sample["word2vec_list"] for sample in samples])
       batch_ys = []
       for sample in samples:
         index = entry_list_category.index(sample["tag"])
@@ -235,11 +238,3 @@ if __name__ == "__main__":
       batch_ys = batch_ys.reshape(len(batch_ys),class_num)#reshapeしろ問題
       a = sess.run(accuracy, feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0})
       print("TEST DATA ACCURACY: %.0f%%" % (a * 100.0))
-
-
-
-
-
-
-
-

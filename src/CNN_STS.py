@@ -76,7 +76,7 @@ if __name__ == "__main__":
     #学習用データ、テストデータの保存先。
     outputInputPath = "temp/pair_word2vec_ans_doc_input_"+methodName+'_'+targetName+".list"
     outputTargetPath = "temp/pair_word2vec_ans_doc_target_"+methodName+'_'+targetName+".list"
-    
+
     if isParse:
       #文書をword2vec群と類似度の組を漬ける
       #学習データに関して
@@ -106,10 +106,10 @@ if __name__ == "__main__":
     with tf.Graph().as_default():
 
       # 変数
-      with tf.name_scope('input'): 
+      with tf.name_scope('input'):
         # インプット変数（各文書が　単語数 x 単語ベクトル　のマトリクス）
         x = tf.placeholder(tf.float32, [None, DOCUMENT_LENGTH, EMBEDDING_SIZE], name="x")
-        # アウトプット変数（文書類似度 0-5）とりあえず 1で 
+        # アウトプット変数（文書類似度 0-5）とりあえず 1で
         y_ = tf.placeholder(tf.float32, [None, 1], name="y_")
         # ドロップアウト変数
         # 出力層の計算を行う時に、プーリング層の結果をランダムに間引くためのもの。過学習を防ぐ。
@@ -147,7 +147,7 @@ if __name__ == "__main__":
             # 活性化関数にはReLU関数を利用
             h = tf.nn.relu(tf.nn.bias_add(conv, b_f), name="relu")
 
-            # プーリング層 Max Pooling 
+            # プーリング層 Max Pooling
             pooled = tf.nn.max_pool(
                 h,
                 ksize=[1, DOCUMENT_LENGTH - filter_size + 1, 1, 1],
@@ -170,31 +170,34 @@ if __name__ == "__main__":
 
       # ドロップアウト（トレーニング時0.5、テスト時1.0）
       h_drop = tf.nn.dropout(h_pool_flat, dropout_keep_prob)
-      
+
+      # デバッグで行った多クラス分類と素性以外で違うのは、
+      # 活性化関数の定義    (類似度:sigmoid*5,多クラス分類:恒等関数)
+      # 損失関数の定義     (類似度:二乗誤差   ,多クラス分類:クロスエントロピー)
+      # です。
+      # バグがあるとすれば、このあたりで予想と違う挙動をしている可能性があります。。。
       with tf.name_scope('output'):
         # アウトプット層
+        #class_numは出力の次元数。数値予測より、一つの出力。
         class_num = 1
+        #重みとバイアス定義
         W_o = tf.Variable(tf.truncated_normal([filter_num_total, class_num], stddev=0.1), name="W")
         b_o = tf.Variable(tf.constant(0.1, shape=[class_num]), name="b")
 
         # 数値の範囲を0-5に絞るべきでは->sigmoid*5で対処。
         linear = tf.matmul(h_drop, W_o) + b_o
         scores = tf.nn.sigmoid(linear,name = "sigmoid")*5
-        #scores = tf.nn.relu(linear)
-        #scores = linear
-
-        #予測はscoreそのままを用いる。あるいは、0-5の範囲をとる何かに。
-        predictions = scores
 
       # 損失関数
       with tf.name_scope("loss"):
+        #l2_lossは誤差二乗和
         loss = tf.nn.l2_loss(scores - y_)
 
       with tf.name_scope('optimize'):
         # Adamオプティマイザーによるパラメータの最適化
         global_step = tf.Variable(0, name="global_step", trainable=False)
         train_step = tf.train.AdamOptimizer(0.0001).minimize(loss, global_step=global_step)
-      
+
 
       with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
@@ -226,7 +229,7 @@ if __name__ == "__main__":
             if i % 10 == 0:
                 # 100件毎に正答率を表示
                 h,s,a,l = sess.run([h_pool_flat,scores,loss,linear], feed_dict={x: batch_xs[0], y_: batch_ys, dropout_keep_prob: 1.0})
-                
+
                 # tensorboard用
                 summary_str = sess.run(summary_op, feed_dict={x: batch_xs[0], y_: batch_ys, dropout_keep_prob: 1.0})
                 summary_writer.add_summary(summary_str, i)
@@ -248,7 +251,7 @@ if __name__ == "__main__":
           batch_ys = np.array([s[2] for s in targets])
           batch_ys = batch_ys.reshape(len(batch_ys),1)
           print(len(batch_xs))
-          s,a,l = sess.run([scores,loss,linear], feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0}) 
+          s,a,l = sess.run([scores,loss,linear], feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0})
           print("損失関数",a)
           r, p = pearsonr(s, batch_ys)
           print("相関:",r," 有意確率",p)
@@ -256,14 +259,3 @@ if __name__ == "__main__":
           output.write(targetPath+"\n 損失関数"+str(a)+"\n 相関:"+str(r)+" 有意確率"+str(p)+"\n\n")
 
   output.write("\n相関和:"+str(pearsonr_value)+"\n相関平均:"+str(pearsonr_value/6))
-
-
-
-
-
-
-
-
-
-
-
