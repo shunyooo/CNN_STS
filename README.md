@@ -2,7 +2,7 @@
 python3系
 
 ## 本ファイル
-文書データやコーパス入りのファイルは大きすぎてgitにあげられなかったので、dropboxにあげました。ので、実行する場合は[こちら](https://www.dropbox.com/s/a4o9evm1f3yanis/NN_graph.zip?dl=0)からダウンロードしてください。
+文書データやコーパス入りのファイルは大きすぎてgitにあげられなかったので、dropboxにあげました。ので、実行する場合は[こちら](https://www.dropbox.com/s/igsfo84z66unqzm/NN_graph.zip?dl=0)からダウンロードしてください。
 gitにあげた分は、実装したコードのみです。
 
 
