@@ -38,7 +38,7 @@ MINIBATCH_SIZE = 100
 METHOD_NAME = "padding-cross"
 
 #出力層の活性化関数
-OUTPUT_ACTIVATION = "relu"
+OUTPUT_ACTIVATION = "linear"
 
 #世代数
 EPOCH = 1000
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     if isParse:
       #文書をword2vec群と類似度の組を漬ける
       #学習データに関して
-      print("学習データのパース")
+      print("\n学習データのパース")
       semEval.transe_word2vec_from_parsedoc(outputPath = outputInputPath,
         ignorePathList = targetPath,methodName = methodName,
         EMBEDDING_SIZE = EMBEDDING_SIZE,DOCUMENT_LENGTH = DOCUMENT_LENGTH)
@@ -204,6 +204,11 @@ if __name__ == "__main__":
           scores = tf.nn.sigmoid(linear,name = "sigmoid")
         elif outputActivation == "relu":
           scores = tf.nn.relu(linear,name = "relu")
+        elif outputActivation == "linear":
+          scores = linear
+        else:
+          print("活性化関数の指定が不正です。")
+          exit()
 
 
       # 損失関数
@@ -255,8 +260,12 @@ if __name__ == "__main__":
                 #print("TRAINING(",i,"): ",s,batch_ys,a)
                 #print("全結合層",h)
                 print("TRAINING(",i,"): ",a)
+                print("回答[:10]　:",['{:5.2f}'.format(x[0]) for x in batch_ys][:10])
+                print("出力[:10]　:",['{:5.2f}'.format(x[0]) for x in s][:10])
+                print("出力前[:10]:",['{:5.2f}'.format(x[0]) for x in l][:10])
                 r, p = pearsonr(s, batch_ys)
                 print("相関:",r," 有意確率",p)
+
 
         # 精度確認
         print("最終精度確認")
@@ -291,7 +300,7 @@ if __name__ == "__main__":
               doc_text = open(docPathList[TARGETNUM],mode='r')
               for ans,out,doc,pre_out in zip(batch_ys,s,doc_text,l):
                   logout.write(doc+"正解:"+str(ans[0])+", 出力:"+str(out[0]*5)+", 出力前の値:"+str(pre_out[0])+"\n\n")
-              print("log write -> "+"log/log_"+methodName+"_"+targetName+"_"+str(EPOCH)+"epoch.txt")
+              print("log write -> "+"log/log_"+methodName+"_"+targetName+"_"+outputActivation+"_"+str(EPOCH)+"epoch.txt")
 
           # 相関を描画
           df = pd.DataFrame({"ans":[x[0] for x in batch_ys],"out":[y[0] for y in s]})
