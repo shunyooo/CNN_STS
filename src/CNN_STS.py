@@ -37,6 +37,9 @@ MINIBATCH_SIZE = 100
 # から選択してください
 METHOD_NAME = "padding-cross"
 
+#出力層の活性化関数
+OUTPUT_ACTIVATION = "relu"
+
 #世代数
 EPOCH = 1000
 
@@ -44,6 +47,7 @@ EPOCH = 1000
 if __name__ == "__main__":
 
   methodName = METHOD_NAME
+  outputActivation = OUTPUT_ACTIVATION
 
   # ログ出力用
   output = open('log/sigmoid-'+methodName+'.txt', mode='w')
@@ -195,7 +199,12 @@ if __name__ == "__main__":
 
         # 数値の範囲を0-5に絞るべきでは->sigmoid*5で対処。
         linear = tf.matmul(h_drop, W_o) + b_o
-        scores = tf.nn.sigmoid(linear,name = "sigmoid")
+
+        if outputActivation == "sigmoid":
+          scores = tf.nn.sigmoid(linear,name = "sigmoid")
+        elif outputActivation == "relu":
+          scores = tf.nn.relu(linear,name = "relu")
+
 
       # 損失関数
       with tf.name_scope("loss"):
@@ -275,11 +284,14 @@ if __name__ == "__main__":
               logout.write("テストデータサイズ:"+str(len(result))+"\n")
               logout.write("ミニバッチサイズ:"+str(MINIBATCH_SIZE)+"\n")
               logout.write("素性の作り:"+methodName+"\n")
+              logout.write("出力層の活性化関数:"+outputActivation+"\n")
+
 
               logout.write("----------------------------------------------------\n\n")
               doc_text = open(docPathList[TARGETNUM],mode='r')
-              for ans,out,doc in zip(batch_ys,s,doc_text):
-                  logout.write(doc+"正解"+str(ans[0])+", 出力"+str(out[0]*5)+"\n\n")
+              for ans,out,doc,pre_out in zip(batch_ys,s,doc_text,l):
+                  logout.write(doc+"正解:"+str(ans[0])+", 出力:"+str(out[0]*5)+", 出力前の値:"+str(pre_out[0])+"\n\n")
+              print("log write -> "+"log/log_"+methodName+"_"+targetName+"_"+str(EPOCH)+"epoch.txt")
 
           # 相関を描画
           df = pd.DataFrame({"ans":[x[0] for x in batch_ys],"out":[y[0] for y in s]})

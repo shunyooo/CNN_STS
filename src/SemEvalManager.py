@@ -188,7 +188,6 @@ class SemEvalManager():
 
     # word2vecと類似度の組みを格納するもの。これを返却する。
     result = []
-    print()
     print("ignore->",ignorePathList)
     print("parse start")
     #それぞれのパスに関して学習。
@@ -243,5 +242,6 @@ class SemEvalManager():
       pickle.dump(result,output)
       print("pickled result to ",outputPath)
 
+    print()
     #一応返しておく
     return result
