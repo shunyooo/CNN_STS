@@ -1,5 +1,5 @@
 #-*- coding:utf-8 -*-
-# クラス分類として捉えるように。
+# 他クラス分類問題として捉えてみる。10クラスぐらい？
 import tensorflow as tf
 from word2vecManager import word2vecManager
 from SemEvalManager import SemEvalManager
@@ -38,16 +38,11 @@ MINIBATCH_SIZE = 100
 # から選択してください
 METHOD_NAME = "padding-cross"
 
-#出力層の活性化関数
+# 出力層の活性化関数
 OUTPUT_ACTIVATION = "linear"
 
-#世代数
+# 世代数
 EPOCH = 1000
-
-# 11クラス分類問題に変更。
-# 0.0 0.5 1.0 1.5 2.0 2.5 3.0 3.5 4.0 4.5 5.0 * (11-1)
-# 0 1 2 3 4 5 6 7 8 9 10
-OUTPUT_CLASSES = 11
 
 
 if __name__ == "__main__":
@@ -56,7 +51,7 @@ if __name__ == "__main__":
   outputActivation = OUTPUT_ACTIVATION
 
   # ログ出力用
-  output = open('log/10classesSTS-'+methodName+'.txt', mode='w')
+  output = open('log/sigmoid-'+methodName+'.txt', mode='w')
 
   pearsonr_value = 0
 
@@ -129,7 +124,7 @@ if __name__ == "__main__":
         # インプット変数（各文書が　単語数 x 単語ベクトル　のマトリクス）
         x = tf.placeholder(tf.float32, [None, DOCUMENT_LENGTH, EMBEDDING_SIZE], name="x")
         # アウトプット変数（文書類似度 0-5）とりあえず 1で
-        y_ = tf.placeholder(tf.float32, [None, OUTPUT_CLASSES], name="y_")
+        y_ = tf.placeholder(tf.float32, [None, 1], name="y_")
         # ドロップアウト変数
         # 出力層の計算を行う時に、プーリング層の結果をランダムに間引くためのもの。過学習を防ぐ。
         # 学習時には0.5,評価の際には１で。
@@ -146,7 +141,7 @@ if __name__ == "__main__":
       # 畳み込み層
       with tf.name_scope('convolution'):
         # フィルタサイズ：3単語、4単語、5単語の３種類のフィルタ
-        filter_sizes = [3, 4, 5]
+        filter_sizes = [4, 6, 8, 16]
         # 各フィルタ処理結果をMax-poolingした値をアペンドしていく
         pooled_outputs = []
         for i, filter_size in enumerate(filter_sizes):
@@ -198,7 +193,7 @@ if __name__ == "__main__":
       with tf.name_scope('output'):
         # アウトプット層
         #class_numは出力の次元数。数値予測より、一つの出力。
-        class_num = OUTPUT_CLASSES
+        class_num = 1
         #重みとバイアス定義
         W_o = tf.Variable(tf.truncated_normal([filter_num_total, class_num], stddev=0.1), name="W")
         b_o = tf.Variable(tf.constant(0.1, shape=[class_num]), name="b")
@@ -216,18 +211,11 @@ if __name__ == "__main__":
           print("活性化関数の指定が不正です。")
           exit()
 
-        #一番値の大きいクラスを、予測したクラスとする。
-        predictions = tf.argmax(scores, 1, name="predictions")
 
-
-      # 損失関数、クロスエントロピー。
+      # 損失関数
       with tf.name_scope("loss"):
-        losses = tf.nn.softmax_cross_entropy_with_logits(scores, y_)
-        loss = tf.reduce_mean(losses)#平均
-
-        # 正答率
-        correct_predictions = tf.equal(predictions, tf.argmax(y_, 1))
-        accuracy = tf.reduce_mean(tf.cast(correct_predictions, "float"), name="accuracy")
+        #l2_lossは誤差二乗和
+        loss = tf.nn.l2_loss(scores - y_/5)
 
       with tf.name_scope('optimize'):
         # Adamオプティマイザーによるパラメータの最適化
@@ -254,17 +242,8 @@ if __name__ == "__main__":
             # training_xyには、modelsで定義した各文書行列及び正解ラベル（カテゴリ）が入っている
             samples = random.sample(result, MINIBATCH_SIZE)
             batch_xs = np.array([[s[0] for s in samples],[s[1] for s in samples]])
-
-            batch_ys = []
-            for sample in samples:
-              index = round(sample[2]*2)
-              #print(sample[2],sample[2]*2,index)
-              feature = [0]*class_num
-              feature[index] = 1
-              batch_ys.append(feature)
-            batch_ys = np.array(batch_ys)
-
-            batch_ys = batch_ys.reshape(len(batch_ys),OUTPUT_CLASSES)#reshapeしろ問題
+            batch_ys = np.array([s[2] for s in samples])
+            batch_ys = batch_ys.reshape(len(batch_ys),1)#reshapeしろ問題
 
             # 確率的勾配降下法を使い最適なパラメータを求める
             # dropout_keep_probは0.5を指定
@@ -273,12 +252,20 @@ if __name__ == "__main__":
 
             if i % 10 == 0:
                 # 100件毎に正答率を表示
-                a,p = sess.run([accuracy,predictions], feed_dict={x: batch_xs[0], y_: batch_ys, dropout_keep_prob: 1.0})
-                print("TRAINING(%d): %.0f%%" % (i, (a * 100.0)))
+                h,s,a,l = sess.run([h_pool_flat,scores,loss,linear], feed_dict={x: batch_xs[0], y_: batch_ys, dropout_keep_prob: 1.0})
 
                 # tensorboard用
                 summary_str = sess.run(summary_op, feed_dict={x: batch_xs[0], y_: batch_ys, dropout_keep_prob: 1.0})
                 summary_writer.add_summary(summary_str, i)
+
+                #print("TRAINING(",i,"): ",s,batch_ys,a)
+                #print("全結合層",h)
+                print("TRAINING(",i,"): ",a)
+                print("回答[:10]　:",['{:5.2f}'.format(x[0]) for x in batch_ys][:10])
+                print("出力[:10]　:",['{:5.2f}'.format(x[0]) for x in s][:10])
+                print("出力前[:10]:",['{:5.2f}'.format(x[0]) for x in l][:10])
+                r, p = pearsonr(s, batch_ys)
+                print("相関:",r," 有意確率",p)
 
 
         # 精度確認
@@ -289,20 +276,12 @@ if __name__ == "__main__":
           print(targetPath)
           #print("確認0行目 ",targets[0])
           batch_xs = np.array([s[0] for s in targets])
-          batch_ys = []
-          for sample in targets:
-            index = round(sample[2]*2)
-            feature = [0]*class_num
-            feature[index] = 1
-            batch_ys.append(feature)
-          batch_ys = np.array(batch_ys)
-
-          batch_ys = batch_ys.reshape(len(batch_ys),OUTPUT_CLASSES)
-
-          a,s,l = sess.run([accuracy,scores,linear], feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0})
-          print("TEST DATA ACCURACY: %.0f%%" % (a * 100.0))
+          batch_ys = np.array([s[2] for s in targets])
+          batch_ys = batch_ys.reshape(len(batch_ys),1)
+          print(len(batch_xs))
 
           # 出力比較ログ
+          s,a,l = sess.run([scores,loss,linear], feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0})
           with open("log/log_"+methodName+"_"+targetName+"_"+str(EPOCH)+"epoch.txt", mode='w') as logout:
               logout.write("学習データリスト\n")
               igNameList = [name for name in nameList if name != targetName]
@@ -323,3 +302,16 @@ if __name__ == "__main__":
               for ans,out,doc,pre_out in zip(batch_ys,s,doc_text,l):
                   logout.write(doc+"正解:"+str(ans[0])+", 出力:"+str(out[0]*5)+", 出力前の値:"+str(pre_out[0])+"\n\n")
               print("log write -> "+"log/log_"+methodName+"_"+targetName+"_"+outputActivation+"_"+str(EPOCH)+"epoch.txt")
+
+          # 相関を描画
+          df = pd.DataFrame({"ans":[x[0] for x in batch_ys],"out":[y[0] for y in s]})
+          sns.jointplot(x="out", y="ans", data=df);
+          sns.plt.show()
+
+          print("損失関数",a)
+          r, p = pearsonr(s, batch_ys)
+          print("相関:",r," 有意確率",p)
+          pearsonr_value += r
+          output.write(targetPath+"\n 損失関数"+str(a)+"\n 相関:"+str(r)+" 有意確率"+str(p)+"\n\n")
+
+  output.write("\n相関和:"+str(pearsonr_value)+"\n相関平均:"+str(pearsonr_value/6))

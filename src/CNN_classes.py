@@ -60,9 +60,10 @@ if __name__ == "__main__":
         ]
 
   #分類対象のクラスインデクス
-  entry_list = [0,3,9,13,17]
+  entry_list = [0,3,6,13,17]
   entry_list_category = [category_list[i] for i in entry_list]
   print(len(entry_list),"クラス分類")
+  print(entry_list_category)
 
   #データを取得。
   #7:3ぐらいでinput,targetに分ける
@@ -217,8 +218,9 @@ if __name__ == "__main__":
 
           if i % 10 == 0:
               # 100件毎に正答率を表示
-              a = sess.run(accuracy, feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0})
+              a,p = sess.run([accuracy,predictions], feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0})
               print("TRAINING(%d): %.0f%%" % (i, (a * 100.0)))
+              print(p[:3])
 
               summary_str = sess.run(summary_op, feed_dict={x: batch_xs, y_: batch_ys, dropout_keep_prob: 1.0})
               summary_writer.add_summary(summary_str, i)

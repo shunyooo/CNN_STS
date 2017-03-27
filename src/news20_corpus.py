@@ -1,5 +1,4 @@
 import pickle
-# 構文解析
 from corenlpManager import CORE_NLP
 from treetaggerManager import TRTG_NLP
 from word2vecManager import word2vecManager
@@ -73,6 +72,9 @@ if __name__ == "__main__":
 		category_path += "/*"
 		doc_paths = glob.glob(category_path)
 
+		#if category in category_list[:2]:
+		#	continue
+
 		#１文書ごとにfor文
 		#	- 原型への変換
 		#	- word2vecへの変換
@@ -88,6 +90,8 @@ if __name__ == "__main__":
 			doc_feature["no"] = category_list.index(category)
 			#doc_feature["doc"] = doc
 			doc_feature["origin_doc"] = parser.parseOriginList(doc)
+			if len(doc_feature["origin_doc"]) == 0:
+				continue
 
 			# DOCUMENT_LENGTHで固定。
 			if len(doc_feature["origin_doc"]) > DOCUMENT_LENGTH:
